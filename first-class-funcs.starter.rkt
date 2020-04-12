@@ -1,5 +1,5 @@
 #lang plai-typed
-#| 
+#|
 Language, parsing, desugaring, and interpreting for:
 First-class functions
 (multiple arguments)
@@ -39,7 +39,7 @@ First-class functions
 
 ;; Types
 ;; ------
-;; the core language     
+;; the core language
 (define-type ExprC
   [numC (n : number)]
   [plusC (l : ExprC) (r : ExprC)]
@@ -74,11 +74,11 @@ First-class functions
     [numS (n) (numC n)]
     [plusS (l r) (plusC (desugar l)
                         (desugar r))]
-    [multS (l r) (undefined)]
-    [bminusS (l r)  (undefined)]
+    [multS (l r) (multC (desugar l) (desugar r))]
+    [bminusS (l r)  (plusC (desugar l) (multC (numC -1) (desugar r)))]
     [idS (i)  (idC i)]
     [lamS (args body) (lamC args (desugar body))]
-    [appS (f args)  (undefined)] 
+    [appS (f args)  (undefined)]
     [if0S (c t e) (if0C (desugar c)
                         (desugar t)
                         (desugar e))]
@@ -87,7 +87,7 @@ First-class functions
 
 ;; Parsing
 ;; --------
-     
+
 ;; parse : s-expression -> ExprS
 (define (parse [s : s-expression]) : ExprS
   (cond
@@ -102,9 +102,9 @@ First-class functions
                 [(*) (multS (parse (second sl)) (parse (third sl)))]
                 [(-) (bminusS (parse (second sl)) (parse (third sl)))]
                 [(if0) (if0S (parse (second sl)) (parse (third sl)) (parse (fourth sl)))]
-                [(fun) (lamS (map s-exp->symbol (s-exp->list (second sl))) 
+                [(fun) (lamS (map s-exp->symbol (s-exp->list (second sl)))
                                 (parse (third sl)))]
-                [(with) (withS (map (lambda (b) 
+                [(with) (withS (map (lambda (b)
                                       (let ([bl (s-exp->list b)])
                                         (defS (s-exp->symbol (first bl)) (parse (second bl)))))
                                     (s-exp->list (second sl)))
@@ -182,7 +182,7 @@ First-class functions
 
 ;; num0? : Value -> boolean
 (define (num0? [v : Value]) : boolean
-  (if (numV? v) 
+  (if (numV? v)
       (zero? (numV-n v))
       (error 'num0? "type error: argument was not a number")))
 
@@ -200,9 +200,9 @@ First-class functions
   (type-case ExprC a
              [numC (n) (numV n)]
              [plusC (l r) (num+ (interp l env) (interp r env))]
-             [multC (l r) (undefined) ]
+             [multC (l r) (num* (interp l env) (interp r env)) ]
              [idC (i)     (undefined) ]
-             [if0C (c t e) (undefined) ]
+             [if0C (c t e) (if (num0? (interp c env)) (interp t env) (interp e env)) ]
              [lamC (params body) (undefined) ]
              [appC (f args) (apply f args env)]
              ))
@@ -231,10 +231,14 @@ First-class functions
 
 
 ;; Some tests
+(test (run '(+ 1 2)) (numV 3))
+(test (run '(* 2 3)) (numV 6))
+(test (run '(- 3 2)) (numV 1))
 (test (run '(+ (* 5 (+ 7 3)) 4)) (numV 54))
 (test (run '(if0 (+ 2 2) 6 8)) (numV 8))
+(test (run '(with ((x 5)) (+ x 3))) (numV 8))
 (test (run '(with ((f (fun (x) (* x 2)))) (f 5))) (numV 10))
 (test/exn (run '(with ((x 5)) y)) "unbound")
 (test/exn (run '((fun (x y x) 3) 4 4 4)) "multiple")
-(test/exn (run '(3 4)) "type") 
+(test/exn (run '(3 4)) "type")
 (test/exn (run '(if0 (fun (x) 5) 3 4)) "type")

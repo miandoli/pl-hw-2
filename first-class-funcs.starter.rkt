@@ -78,11 +78,11 @@ First-class functions
     [bminusS (l r)  (plusC (desugar l) (multC (numC -1) (desugar r)))]
     [idS (i)  (idC i)]
     [lamS (args body) (lamC args (desugar body))]
-    [appS (f args)  (undefined)]
+    [appS (f args)  (appC (desugar f) (map desugar args))]
     [if0S (c t e) (if0C (desugar c)
                         (desugar t)
                         (desugar e))]
-    [withS (bindings body) (undefined)]
+    [withS (bindings body) (appC (lamC (map defS-name bindings) (desugar body)) (map desugar (map defS-val bindings)))]
     ))
 
 ;; Parsing
@@ -201,7 +201,7 @@ First-class functions
              [numC (n) (numV n)]
              [plusC (l r) (num+ (interp l env) (interp r env))]
              [multC (l r) (num* (interp l env) (interp r env)) ]
-             [idC (i)     (undefined) ]
+             [idC (i)     (lookup i env) ]
              [if0C (c t e) (if (num0? (interp c env)) (interp t env) (interp e env)) ]
              [lamC (params body) (undefined) ]
              [appC (f args) (apply f args env)]

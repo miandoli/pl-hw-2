@@ -29,8 +29,8 @@ First-class functions
 ;; length-mismatch-error : symbol -> (listof string) -> (listof string) -> void
 (define (length-mismatch-error tag lst1 lst2)
   (error tag
-         (string-append "string lengths don't match "
-                        (string-append (to-string lst1) (to-string lst2))
+         (string-append "list lengths don't match "
+                        (string-append (string-append (to-string lst1) " ") (to-string lst2))
                         )))
 
 ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,23 +209,26 @@ First-class functions
 
 ;; apply : ExprC -> (listof ExprC) -> Env -> Value
 (define (apply  [f : ExprC] [args : (listof ExprC) ] [env : Env]) : Value
-    (let ([f-val (interp f env)])
-        (if (closV? f-val)
-            (let ([params (closV-params f-val)])
+    (type-case Value (interp f env)
+        [closV (params body c-env)
+            (if (not (different-length? params args))
                 (interp
-                    (closV-body f-val)
+                    body
                     (add-bindings
                         (if (not (multiples? params))
                             params
-                            (multiple-names-error 'multiple params)
+                            (multiple-names-error 'apply params)
                         )
                         (map (lambda (a) (interp a env)) args)
-                        (closV-env f-val)
+                        c-env
                     )
                 )
+                (length-mismatch-error 'apply params args)
             )
-            (error 'closV? "type error: argument was not a symbol")
-        )
+        ]
+        [numV (n)
+            (error 'apply "type error: argument was not a symbol")
+        ]
     )
 )
 
@@ -258,5 +261,12 @@ First-class functions
 (test (run '(with ((f (fun (x) (* x 2)))) (f 5))) (numV 10))
 (test/exn (run '(with ((x 5)) y)) "unbound")
 (test/exn (run '((fun (x y x) 3) 4 4 4)) "multiple")
+(test (run '((fun (x y z) (+ (+ x y) z)) 1 2 3)) (numV 6))
 (test/exn (run '(3 4)) "type")
 (test/exn (run '(if0 (fun (x) 5) 3 4)) "type")
+(test/exn (run '((fun (x y) (+ x y)) 1)) "length")
+(test/exn (run '((fun (x) (+ x 1)) 1 2)) "length")
+(test (run '(with ((x 3)) (with ((y 4)) (+ x y)))) (numV 7))
+(test (run '(with ((x 3)) (with ((x 4)) (+ x x)))) (numV 8))
+(test (run '(with ((x 3)) x)) (numV 3))
+(test (run '(with ((x 3)) 3)) (numV 3))

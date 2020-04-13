@@ -209,7 +209,25 @@ First-class functions
 
 ;; apply : ExprC -> (listof ExprC) -> Env -> Value
 (define (apply  [f : ExprC] [args : (listof ExprC) ] [env : Env]) : Value
-    (local ([define f-val (interp f env)]) (interp (closV-body f-val) (add-bindings (closV-params f-val) (map (lambda (a) (interp a env)) args) (closV-env f-val)))))
+    (let ([f-val (interp f env)])
+        (if (closV? f-val)
+            (let ([params (closV-params f-val)])
+                (interp
+                    (closV-body f-val)
+                    (add-bindings
+                        (if (not (multiples? params))
+                            params
+                            (multiple-names-error 'multiple params)
+                        )
+                        (map (lambda (a) (interp a env)) args)
+                        (closV-env f-val)
+                    )
+                )
+            )
+            (error 'closV? "type error: argument was not a symbol")
+        )
+    )
+)
 
 
 ;; ------------------------------------------------------------------------

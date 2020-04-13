@@ -203,13 +203,13 @@ First-class functions
              [multC (l r) (num* (interp l env) (interp r env)) ]
              [idC (i)     (lookup i env) ]
              [if0C (c t e) (if (num0? (interp c env)) (interp t env) (interp e env)) ]
-             [lamC (params body) (undefined) ]
+             [lamC (params body) (closV params body env) ]
              [appC (f args) (apply f args env)]
              ))
 
 ;; apply : ExprC -> (listof ExprC) -> Env -> Value
 (define (apply  [f : ExprC] [args : (listof ExprC) ] [env : Env]) : Value
-  (undefined))
+    (local ([define f-val (interp f env)]) (interp (closV-body f-val) (add-bindings (closV-params f-val) (map (lambda (a) (interp a env)) args) (closV-env f-val)))))
 
 
 ;; ------------------------------------------------------------------------
